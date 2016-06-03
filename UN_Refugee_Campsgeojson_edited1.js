@@ -1,4 +1,4 @@
-var bicycleRental = {
+var Refugee_camps = {
     "type": "FeatureCollection",
     "features": [
         {
