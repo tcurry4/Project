@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="description" content="Project for GGS590 WebGIS Summer 2016 Curry">
+	<!-- Leaflet -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/leaflet.css" />
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/leaflet.js"></script>
+    <!-- data uploaded to github working directory that is public -->
+    <script src="https://raw.githubusercontent.com/tcurry4/Project/master/syrian_tweet_count.geojson"></script>
+    <script src="https://raw.githubusercontent.com/tcurry4/Project/master/migrantfiles.geojson"></script>
+    <script src="https://raw.githubusercontent.com/tcurry4/Project/master/syria_refugeesites_2016jan21_hiu_dos0.geojson"></script>
+    <script src="https://raw.githubusercontent.com/tcurry4/Project/master/retweets.geojson"></script>
+    <!-- Markerclusters -->
+	<script src='https://api.mapbox.com/mapbox.js/plugins/leaflet-markercluster/v0.4.0/leaflet.markercluster.js'></script>
+	<link href='https://api.mapbox.com/mapbox.js/plugins/leaflet-markercluster/v0.4.0/MarkerCluster.css' rel='stylesheet' />
+	<link href='https://api.mapbox.com/mapbox.js/plugins/leaflet-markercluster/v0.4.0/MarkerCluster.Default.css' rel='stylesheet' />
+      
+    <!-- jQuery -->
+    <script src="http://code.jquery.com/jquery-1.10.2.min.js"></script>
+</head>
+
+<body>
+	<div id="map" style= "height: 600px"></div>
+
+	<script>
+		
+		//additional layer options at https://leaflet-extras.github.io/leaflet-providers/preview/ 
+
+		var OpenStreetMap_BlackAndWhite = L.tileLayer('http://{s}.tiles.wmflabs.org/bw-mapnik/{z}/{x}/{y}.png', {
+			maxZoom: 18,
+			attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap |</a>'
+		});
+
+		var Esri_WorldImagery = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+	attribution: '|  Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+});
+
+		var map = L.map('map', {
+		    center: new L.LatLng(37.9, 35.02), //Centered on Country of Syria
+		    zoom: 9,
+		    layers: [OpenStreetMap_BlackAndWhite]
+		});
+
+		var baseMaps = {
+			"OSM B&W" : OpenStreetMap_BlackAndWhite,
+			"Satellite Imagery" : Esri_WorldImagery
+		};
+ 
+              
+            L.control.layers(baseMaps).addTo(map);
+           
+		
+            //MarkerClusterGroup that collects all GeoJSON objects
+            var group = new L.markerClusterGroup().addTo(map);
+      
+            // Links to GitHub repository and data source credit
+map.attributionControl
+.setPrefix('View <a href="https://github.com/tcurry4/Project">open-source code on GitHub</a>, created with <a href="http://leafletjs.com" title="A JS library for interactive maps">Leaflet</a>');
+map.attributionControl.addAttribution('Syria Refugee data &copy; <a //href="https://data.humdata.org/dataset/syria-refugee-sites">The Humanitarian Data Exchange </a>|  The Migrants Files &copy; <a //href="https://docs.google.com/spreadsheets/d/1YNqIzyQfEn4i_be2GGWESnG2Q80E_fLASffsXdCOftI/edit#gid=1085726718">Events during which someone died trying to reach or stay in Europe</a> ');
+                         
+            //styles modified for blue color for refugee deaths
+            var geojsonMarkerOptions = {
+    	      radius: 8,
+    	      fillColor: "#3182bd",
+    	      color: "#000",
+    	      weight: 1,
+    	      opacity: 1,
+    	      fillOpacity: 0.8
+		    };
+
+             //Adding Data for Migrant deaths
+             //SQL query on CartoDB data via api 
+		    var query = "http://tcurry4.cartodb.com/api/v2/sql?format=GeoJSON&q=SELECT * FROM migrantfiles";
+            console.log("Query: "+query);
+            //popup based on the "label" in the CartoDB table
+            $.getJSON(query, function(cartodbdata) {
+              var geojsonlayer = L.geoJson(cartodbdata,{
+                // add popup with info to each geosjon feature
+                onEachFeature: function(feature, layer) {
+                  layer.bindPopup("<h2>" + feature.properties.cause_of_d + "<br>" + feature.properties.year + "</h2>");
+			    },
+                                
+                //style the point marker
+                pointToLayer: function (feature, latlng) {
+				  return L.circleMarker(latlng, geojsonMarkerOptions);
+			    }
+			  }).addTo(group);
+              
+              //fit to the map boundary of the selected data; can also use //L.FeatureGroup.getBounds()
+              map.fitBounds(group.getBounds()); // zooms to fit data
+           });  
+                     
+              //Labels and properties to match column headers in GeoJSON map data, country name and refugee count
+function onEachFeature(feature, layer) {
+  var popupText = "<b>" + feature.properties.cntry_name + "</b>"
+     + "<br>Refugee Population: " + "<br>" + feature.properties.refugee_po;
+  layer.bindPopup(popupText);
+}
+
+        //Adding Data for Country Refugee Numbers    
+        //link to CartoDB to create a SQL query via api link
+          var chloropleth = "http://tcurry4.cartodb.com/api/v2/sql?format=GeoJSON&q=SELECT * FROM syrian_tweet_count ";
+//file name edited for the GeoJson map data
+        //using the AJAX library to load data
+$.getJSON(chloropleth, function (data) {
+  geoJsonLayer = L.geoJson(data, {
+    style: style,
+    onEachFeature: onEachFeature
+  }).addTo(map);
+});
+            //Styles for the Refugee Camps         
+            var geojsonMarkerOptions1 = {
+    	      radius: 8,
+    	      fillColor: "#ff00ff",
+    	      color: "#000",
+    	      weight: 1,
+    	      opacity: 1,
+    	      fillOpacity: 0.9
+		    };
+            //Display the Refugee Camps that is now a GeoJSON file type hosted on github
+            var geojsonlayer = L.geoJson(refugee_camps,{
+              // add popup with info to each geosjon feature
+              onEachFeature: function(feature, layer) {
+				layer.bindPopup("<h2>" + feature.properties.name + "</h2>");
+			  },
+              //style the point marker
+              pointToLayer: function (feature, latlng) {
+				return L.circleMarker(latlng, geojsonMarkerOptions1);
+			  }
+			}).addTo(group);
+      
+            
+          
+      
+          //Adding Data for Twitter Data
+          // Create a SQL query on CartoDB data via api link
+            var querystem = "http://tcurry4.cartodb.com/api/v2/sql?format=GeoJSON&q=SELECT * FROM tweets WHERE text ILIKE '";
+			var search = '%25refugee%25'; // refugee, migrant, death, conflict
+			var query2 = querystem + search + "'";
+			console.log("Initial query2: " + query2);
+
+            //running the query
+			$.getJSON(query2, function(data) {
+				geojsonlayer1 = L.geoJson(data, {
+					onEachFeature: function(feature, layer) {
+						// add popup with info
+						layer.bindPopup("<h2>" + feature.properties.text + "</p>");
+					}
+				}).addTo(group);
+              
+                //fit to the map boundary of the selected data; can also use //L.FeatureGroup.getBounds()
+				map.fitBounds(group.getBounds()); // zooms to fit data
+
+			});
+      
+            //Retweets
+            var Polylines1 = L.geoJson(Retweets).addTo(map);
+
+                 
+            //Control for Text Field to search     
+			var myControl = L.Control.extend({
+				options: {
+					position: 'bottomleft'
+				},
+				onAdd: function(map) {
+					this._div = L.DomUtil.create('div', 'myControl');
+					this._div.innerHTML = '<h1 id="title"><img src="https://raw.githubusercontent.com/tcurry4/Project/master/Twitter_logo.png" alt="Refugee Camps" width="25" height="25">     Twitter Search Based on Keyword</h1>' +
+						'<input type="text" id="myTextField" value="Use %25 around word" />' +
+						'<input type="submit" id="searchBtn" value="Search" onclick="change()"/>'
+					L.DomEvent.disableClickPropagation(this._div);
+					return this._div;
+				}
+			});
+			map.addControl(new myControl());
+          
+            //Functions for search field
+            //Functions to either disable (onmouseover) or enable (onmouseout) the map's dragging
+			function controlEnter(e) {
+				map.dragging.disable();
+			}
+
+			function controlLeave() {
+				map.dragging.enable();
+			}
+			//Quick application to all input tags
+			var inputTags = document.getElementsByTagName("input")
+			for (var i = 0; i < inputTags.length; i++) {
+				inputTags[i].onmouseover = controlEnter;
+				inputTags[i].onmouseout = controlLeave;
+			}
+
+			// button functionality - get value from textfield and change layer
+			function change() {
+				search = document.getElementById('myTextField').value;
+              debugger;
+				if (query2.length == 0) {
+					alert('Nothing to search for...');
+					return;
+				}
+				// updating the layer means deleting the old one and
+				// adding a new one
+				group.removeLayer(geojsonlayer1);
+
+				query2 = querystem + search + "'";
+				console.log("Changed query2: " + query2);
+
+				$.getJSON(query2, function(data) {
+					geojsonlayer1 = L.geoJson(data, {
+						onEachFeature: function(feature, layer) {
+							// ADD A POPUP WITH SOME INFO
+							layer.bindPopup("<h2>" + feature.properties.text + "</p>");
+						}
+					}).addTo(group);
+				});
+
+				var title = document.getElementById('title');
+				title.innerHTML = search;
+			}
+      
+            
+        //Control for popup on mouse hover functionality     
+
+        var info = L.control();
+
+		info.onAdd = function(map) {
+			this._div = L.DomUtil.create('div', 'info');
+			this.update();
+			return this._div;
+		};
+
+		info.update = function(props) {
+			this._div.innerHTML = '<h4>Country Profile</h4>' + (props ?
+				'<b>' + props.name + '</b><br />' + props.refugee_po + ' refugees' + '</b><br />' + props._2014 + ' People'+ '</b><br />' + props.sqkm + 'Km<sup>2</sup>': 'Hover over a country');
+		};
+
+		info.addTo(map);
+      
+        
+        //Function for handling popups and polygons     
+
+		// get color depending on refugee population 
+		function getColor(d) {
+			return d > 1000000  ? '#990000' :
+         d > 750000  ? '#d7301f' :
+         d > 250000   ? '#ef6548' :
+         d > 100000   ? '#fc8d59' :
+         d > 50000   ? '#fdbb84' :
+         d > 10000   ? '#fdd49e' :
+         d > 1000   ? '#fee8c8' :
+                    '#fff7ec';
+}
+      
+        function style(feature) {
+  return {
+    weight: 2,
+    opacity: 1,
+    color: 'white',
+    dashArray: '3',
+    fillOpacity: 0.3,
+    fillColor: getColor(feature.properties.refugee_po)
+  };
+}
+
+		function highlightFeature(e) {
+			var layer = e.target;
+
+			layer.setStyle({
+				weight: 5,
+				color: '#666',
+				dashArray: '',
+				fillOpacity: 0.0
+			});
+
+			if (!L.Browser.ie && !L.Browser.opera) {
+				layer.bringToFront();
+			} 
+			info.update(layer.feature.properties);
+		}
+
+		function resetHighlight(e) {
+			geojson.resetStyle(e.target);
+			info.update();
+		}
+
+		function zoomToFeature(e) {
+          map.fitBounds(e.target.getBounds());
+		}
+
+		function onEachFeature(feature, layer) {
+            layer.on({ //addEventListeners
+                mouseover: highlightFeature, // mouse moves over shape
+				mouseout: resetHighlight, // mouse leaves shape
+				click: zoomToFeature // click on shape - was popup in other examples
+			});
+		}
+
+		var geojson; // layer for country refugee population
+
+       
+       //Obtain GeoJSON data from Cartodb     
+      
+	    var query3 = "http://tcurry4.cartodb.com/api/v2/sql?format=GeoJSON&q=SELECT * FROM syrian_tweet_count";
+        console.log("Query: "+query3);
+        
+        $.getJSON(query3, function(cartodbdata1) {
+          geojson = L.geoJson(cartodbdata1,{
+            // add popup with info to each geosjon feature
+            style: style, //style neighborhood polygons
+            onEachFeature: onEachFeature //attached popup behavior
+          }).addTo(map);
+         
+        });  
+
+        console.log("Done!");
+ 
+
+var legend = L.control({position: 'bottomright'});
+
+legend.onAdd = function (map) {
+
+    var div = L.DomUtil.create('div', 'info legend'),
+        grades = [0, 1000, 10000, 50000, 100000, 250000, 750000, 1000000];
+    
+    //Add Static Legend item for Migrant Deaths
+    div.innerHTML +=
+    '<img src="https://raw.githubusercontent.com/tcurry4/Project/master/Migrant_Deaths.gif" alt="Migrant Deaths" width="14" height="14"><b>          Migrant Deaths </b><br>';
+    //Add Static Legend item for Refugee Camps
+    div.innerHTML +=
+    '<img src="https://raw.githubusercontent.com/tcurry4/Project/master/Refugee_camps.gif" alt="Refugee Camps" width="14" height="14"><b>          UNHCR Refugee Camps </b><br>';
+    //Add Static Legend item for Retweets
+    div.innerHTML +=
+    '<img src="https://raw.githubusercontent.com/tcurry4/Project/master/retweets_sym.gif" alt="Refugee Camps" width="14" height="14"><b>          Retweets </b><br>';
+    //Add Title for the chloropleth map
+    div.innerHTML += '<b>Refugee Population (2015)</b><br>'
+    
+    // loop through refugee population intervals and generate a label with a colored square for each interval
+    for (var i = 0; i < grades.length; i++) {
+        div.innerHTML +=
+            '<i style="background:' + getColor(grades[i] + 1) + '"></i> ' +
+            grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+');
+    }
+
+    return div; 
+};
+
+legend.addTo(map);
+      
+        
+          
+		</script>
+	</body>
+
+</html>
